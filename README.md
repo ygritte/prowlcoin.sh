@@ -80,7 +80,7 @@ by its author under its own terms
       DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
                    Version 2, December 2004
 
-    Copyright (C) 2013 Ygritte/valparaiso
+    Copyright (C) 2013 Ygritte
 
     Everyone is permitted to copy and distribute verbatim or modified
     copies of this license document, and changing it is allowed as long
