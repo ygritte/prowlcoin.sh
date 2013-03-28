@@ -20,7 +20,7 @@ Enter your Prowl API key in the `.prowlapikey` file
 
 ## USAGE:
 
-    ./prowlcoin exchange currency treshold direction [toCUR]
+    ./prowlcoin tick exchange currency treshold direction alert_level has_banner [toCUR]
 
 where
 
@@ -73,14 +73,14 @@ where
 
 Applies to all files in this repository except for the submodule
 [JSON.sh](https://github.com/dominictarr/JSON.sh.git) which is licensed
-under its own terms
+by its author under its own terms
 
 ###prowlcoin license
 
       DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
                    Version 2, December 2004
 
-    Copyright (C) 2013 valparaiso
+    Copyright (C) 2013 Ygritte/valparaiso
 
     Everyone is permitted to copy and distribute verbatim or modified
     copies of this license document, and changing it is allowed as long
