@@ -7,6 +7,9 @@ Shell script to query bitcoin exchanges (mtgox, bc-central as of now)
 for the  current exchange rate, and send PROWL alerts in case the
 rate is higher/lower than a predetermined limit
 
+>NB : this is a quick and dirty **BASH** script, which only does
+>what it says, send you a prowl alert if a price threshold is reached
+
 ## Setup
 
 Clone this repository somewhere
