@@ -122,6 +122,10 @@ __banner()
 }
 
 
+# .......................
+# SEND PROWL NOTIFICATION
+# .......................
+#
 # modified from : http://blog.thelifeofkenneth.com/2012/03/prowl-push-notifications-from-bash.html
 prowlpush()
 {
@@ -158,6 +162,83 @@ is_int() { return $(test "$@" -eq "$@" > /dev/null 2>&1); }
 
 is_number() { typeset TESTVAR="$(echo "$1" | sed 's/[0-9]*//g' | sed 's/^-//' | sed 's/\.//' )";   [ "${TESTVAR}"x = ""x ] && return 0 || return 1; } 
 
+# ..................
+# DEFINE SOME COLORS
+# ..................
+
+define_colors_TPUT() {
+                                                                     #   ANSI equivalent
+                                                                     #  <attr> <fg>  <bg>
+  # ALL
+   export __NN_=$( tput sgr0   || : 2>/dev/null )                    # [ 0m                RESET ALL attributes
+
+  # STYLES
+   export __EM_=$( tput bold    || : 2>/dev/null )                   # [ 1m                BEGIN DOUBLE INTENSITY (bold) mode
+
+
+  if [ $(tput colors) -ne 256 ]; then
+
+  # COLORS
+  # DEFAULT SYSTEM COLORS
+  # <Foreground>
+    export __K_=$( tput setf 0 || tput setaf 0 || : 2>/dev/null )    # [       0m          SET   FG color to BLACK
+    export __R_=$( tput setf 4 || tput setaf 1 || : 2>/dev/null )    # [       1m          SET   FG color to RED
+    export __G_=$( tput setf 2 || tput setaf 2 || : 2>/dev/null )    # [       2m          SET   FG color to GREEN
+    export __Y_=$( tput setf 6 || tput setaf 3 || : 2>/dev/null )    # [       3m          SET   FG color to YELLOW
+    export __B_=$( tput setf 1 || tput setaf 4 || : 2>/dev/null )    # [       4m          SET   FG color to BLUE
+    export __M_=$( tput setf 5 || tput setaf 5 || : 2>/dev/null )    # [       5m          SET   FG color to MAGENTA
+    export __C_=$( tput setf 3 || tput setaf 6 || : 2>/dev/null )    # [       6m          SET   FG color to CYAN
+    export __W_=$( tput setf 7 || tput setaf 7 || : 2>/dev/null )    # [       7m          SET   FG color to WHITE
+  # <Background>
+  export __BGK_=$( tput setb 0 || tput setab 0 || : 2>/dev/null )    # [       0m          SET   BG color to BLACK
+  export __BGR_=$( tput setb 4 || tput setab 1 || : 2>/dev/null )    # [       1m          SET   BG color to RED
+  export __BGG_=$( tput setb 2 || tput setab 2 || : 2>/dev/null )    # [       2m          SET   BG color to GREEN
+  export __BGY_=$( tput setb 6 || tput setab 3 || : 2>/dev/null )    # [       3m          SET   BG color to YELLOW
+  export __BGB_=$( tput setb 1 || tput setab 4 || : 2>/dev/null )    # [       4m          SET   BG color to BLUE
+  export __BGM_=$( tput setb 5 || tput setab 5 || : 2>/dev/null )    # [       5m          SET   BG color to MAGENTA
+  export __BGC_=$( tput setb 3 || tput setab 6 || : 2>/dev/null )    # [       6m          SET   BG color to CYAN
+  export __BGW_=$( tput setb 7 || tput setab 7 || : 2>/dev/null )    # [       7m          SET   BG color to WHITE
+  # <reset>
+   export __NF_=$( tput setf 9 || tput setaf 9 || : 2>/dev/null )    # [       39m         RESET FG color to term's default
+   export __NG_=$( tput setb 9 || tput setab 9 || : 2>/dev/null )    # [             49m   RESET BG color to term's default
+  export __NFG_=$__NF_$__NB_                                         # [       39;   49m   RESET FG & BG color to term's default
+
+  else
+  # LIGHTEN DEFAULT SYSTEM COLORS A BIT
+  # <Foreground>
+    export __K_=$( tput setf 16  || tput setaf 16  || : 2>/dev/null ) #                    SET   FG color to BLACK
+    export __R_=$( tput setf 196 || tput setaf 196 || : 2>/dev/null ) #                    SET   FG color to RED
+    export __G_=$( tput setf 34  || tput setaf 34  || : 2>/dev/null ) #                    SET   FG color to GREEN
+    export __Y_=$( tput setf 220 || tput setaf 220 || : 2>/dev/null ) #                    SET   FG color to YELLOW
+    export __B_=$( tput setf 33  || tput setaf 33  || : 2>/dev/null ) #                    SET   FG color to BLUE
+    export __M_=$( tput setf 201 || tput setaf 201 || : 2>/dev/null ) #                    SET   FG color to MAGENTA
+    export __C_=$( tput setf 45  || tput setaf 45  || : 2>/dev/null ) #                    SET   FG color to CYAN
+    export __W_=$( tput setf 15  || tput setaf 15  || : 2>/dev/null ) #                    SET   FG color to WHITE
+  # <Background>
+  export __BGK_=$( tput setb 16  || tput setab 16  || : 2>/dev/null ) #                    SET   BG color to BLACK
+  export __BGR_=$( tput setb 196 || tput setab 196 || : 2>/dev/null ) #                    SET   BG color to RED
+  export __BGG_=$( tput setb 34  || tput setab 34  || : 2>/dev/null ) #                    SET   BG color to GREEN
+  export __BGY_=$( tput setb 220 || tput setab 220 || : 2>/dev/null ) #                    SET   BG color to YELLOW
+  export __BGB_=$( tput setb 33  || tput setab 33  || : 2>/dev/null ) #                    SET   BG color to BLUE
+  export __BGM_=$( tput setb 201 || tput setab 201 || : 2>/dev/null ) #                    SET   BG color to MAGENTA
+  export __BGC_=$( tput setb 45  || tput setab 45  || : 2>/dev/null ) #                    SET   BG color to CYAN
+  export __BGW_=$( tput setb 15  || tput setab 15  || : 2>/dev/null ) #                    SET   BG color to WHITE
+
+  fi
+
+  # <pseudo Foreground-bold>
+  export __EMK_=$__EM_$__K_                                          # [ 1;    20m         SET   FG color to BOLD BLACK
+  export __EMR_=$__EM_$__R_                                          # [ 1;    21m         SET   FG color to BOLD RED
+  export __EMG_=$__EM_$__G_                                          # [ 1;    22m         SET   FG color to BOLD GREEN
+  export __EMY_=$__EM_$__Y_                                          # [ 1;    23m         SET   FG color to BOLD YELLOW
+  export __EMB_=$__EM_$__B_                                          # [ 1;    24m         SET   FG color to BOLD BLUE
+  export __EMM_=$__EM_$__M_                                          # [ 1;    25m         SET   FG color to BOLD MAGENTA
+  export __EMC_=$__EM_$__C_                                          # [ 1;    26m         SET   FG color to BOLD CYAN
+  export __EMW_=$__EM_$__W_                                          # [ 1;    27m         SET   FG color to BOLD RED
+
+
+}
+__define_colors_TPUT
 
 # ----------------------------------------------------------------------
 #            (dirty) COMMAND LINE ARGUMENTS parsing
