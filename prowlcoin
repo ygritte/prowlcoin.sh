@@ -1,0 +1,342 @@
+#!/usr/bin/env bash
+#_______________________________________________________________________
+#
+# NAME : prowlcoin
+#
+# AUTHOR : ygritte/valparaiso
+#
+# DESCRIPTION :
+#
+#    Shell script to query bitcoin exchanges (mtgox, bc-central as of now)
+#    for the  current exchange rate, and send PROWL alerts in case the
+#    rate is higher/lower than a predetermined limit
+#
+# LICENSE :
+#
+#      DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+#                   Version 2, December 2004
+#
+#    Copyright (C) 2013 valparaiso
+#
+#    Everyone is permitted to copy and distribute verbatim or modified
+#    copies of this license document, and changing it is allowed as long
+#    as the name is changed.
+#
+#              DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE
+#     TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+#
+#    0. You just DO WHAT THE FUCK YOU WANT TO.
+#
+#
+# DISCLAIMER :
+#
+#     This program is free software. It comes without any warranty, to
+#     the extent permitted by applicable law. You can redistribute it
+#     and/or modify it under the terms of the Do What The Fuck You Want
+#     To Public License, Version 2, as published by Sam Hocevar. See
+#     http://www.wtfpl.net/ for more details.
+#_______________________________________________________________________
+
+
+
+
+# ----------------------------------------------------------------------
+#                 GLOBAL PARAMETERS
+# ----------------------------------------------------------------------
+
+# ............
+# DEFINE GLOBS
+# ............
+
+__prowlAPIKEY=
+__looptick=121 # loop duration in seconds, default value
+
+__tmpdir=${TMPDIR-'/tmp'}
+__tmpdir=${__tmpdir%/} # remove trailing slash on osx
+
+__CURsymbol=
+__APIcmd=
+
+__supports8=false
+
+# .......................
+# CHECK for UTF-8 support
+# .......................
+
+locale >/dev/null 2>&1
+[ $? = 0 ] && locale | grep -i utf-8 >/dev/null 2>&1 && __supports8=true
+[ $__supports8 ] && __alertSymbol="⚠" || __alertSymbol="(*)"
+
+
+# ..................
+# LOAD PROWL API KEY
+# ..................
+
+[ -r .prowlapikey ] && __prowlAPIKEY="$(cat ./.prowlapikey)" || {
+    printf "\n%s\n\n" "Error : file not found .prowlapikey"
+    exit 1
+}
+
+
+# ........................
+# UPDATE JSON.sh SUBMODULE
+# ........................
+
+git submodule init >/dev/null 2>&1
+[ 0 -eq "$?" ] || { printf "\nCannot init 'JSON.sh' git submodule... exiting"; exit 1; }
+git submodule update >/dev/null 2>&1
+[ 0 -eq "$?" ] || { printf "\nCannot update 'JSON.sh' git submodule... exiting"; exit 1; }
+
+
+# ----------------------------------------------------------------------
+#                         HELPER functions
+# ----------------------------------------------------------------------
+
+# ..........................
+# DISPLAY (TITLE) TOP BANNER
+# ..........................
+
+__banner()
+{
+  #get TTY size in portable manner
+  sttysize=$(stty size 2>/dev/null)
+  [ $? -eq 0 ]  && {
+    nlines=${sttysize%% *}
+    ncol=${sttysize##* }
+  } || {
+    nlines=$(tput lines);
+    ncol=$(tput cols);
+  }
+
+  local __msg="(prowlcoin) $__XCHname $__CURsymbol"
+  local __msglength=$(echo $__msg | wc -c)
+  local __fillerlength=$((ncol - __msglength ))
+  local __filler="$(head -c $__fillerlength < /dev/zero | tr '\0' ' ')"
+  __msg="$__msg$__filler"
+
+  # Print BANNER
+  tput sc; # Save current cursor position
+  tput cup 0 0
+  printf "%s" $__BGY_$__M_"$__msg"$__NN_
+  tput rc; # go back to last saved position
+}
+
+
+# modified from : http://blog.thelifeofkenneth.com/2012/03/prowl-push-notifications-from-bash.html
+prowlpush()
+{
+  LOG="$__tmpdir/prowl.log"
+  touch $LOG
+  chmod -f 666 $LOG
+
+  # Based on if we have two or three arguments, change the default priority
+  if [ $# -eq "2" ]; then
+      EVENT_NAME=$1
+      PRIORITY="0"
+      EVENT_DESC=$2
+  elif [ $# -eq "3" ]; then
+      EVENT_NAME=$1
+      PRIORITY=$2
+      EVENT_DESC=$3
+  else
+      echo "USAGE: $0 \"Event name\" \"[priority]\" \"Message body\" " >/dev/fd/2
+      exit
+  fi
+
+  # Post notification to Prowl using curl
+
+  curl -s https://api.prowlapp.com/publicapi/add \
+      -F apikey="$__prowlAPIKEY" \
+      -F priority="$PRIORITY" \
+      -F application="BC-watcher" \
+      -F event="$EVENT_NAME" \
+      -F description="$EVENT_DESC" > $LOG
+}
+
+
+is_int() { return $(test "$@" -eq "$@" > /dev/null 2>&1); }
+
+is_number() { typeset TESTVAR="$(echo "$1" | sed 's/[0-9]*//g' | sed 's/^-//' | sed 's/\.//' )";   [ "${TESTVAR}"x = ""x ] && return 0 || return 1; } 
+
+
+# ----------------------------------------------------------------------
+#            (dirty) COMMAND LINE ARGUMENTS parsing
+# ----------------------------------------------------------------------
+
+__looptick=$1
+__XCHname=$2     # "BCC" or "GOX"
+__CURname=$3     # Currency name (EUR|USD)
+__CURtreshold=$4 # value in currency marking the Prowl alert limit
+__updown=$5      # up : alert if superior; down alert if inferior
+__alertLevel=$6
+__hasBanner=$7   # either 'banner' or 'nobanner'
+__toCUR=$8
+
+
+# ............
+# looptick
+# ............
+
+if $(! is_int "$__looptick"); then
+  echo "first arg has to be an integer (time between two ticks in the loop in seconds)"
+  exit 1
+fi
+
+if [ "$( echo $__looptick'<'30 | bc -l )" = "1" ]; then
+  echo "time between two ticks has to be > 30 s"
+  exit 1
+fi
+
+
+# ..........................
+# set Exchange's API command
+# ..........................
+
+if [ "$__XCHname" = "BCC" ]
+then
+  __APIcmd="curl -s https://bitcoin-central.net/api/v1/ticker | ./JSON.sh/JSON.sh -b | grep price | awk ""'""{print \$2}""'"
+  #__APIcmd='curl -s https://bitcoin-central.net/api/v1/ticker | json -a price'
+elif [ "$__XCHname" = "GOX" ]
+then
+  __APIcmd="curl -s \"https://mtgox.com/api/1/BTC${__CURname}/ticker\" | ./JSON.sh/JSON.sh -b | grep return | grep \\\"last\\\" | grep \\\"value\\\" | awk '{print \$2}' | tr -d \\\""
+  #__APIcmd='curl -s "https://mtgox.com/api/1/BTC${__CURname}/ticker" | json -a return | json -a last | json -a value'
+else
+  echo "provide an exchange platform [BCC|GOX]"
+  exit 1
+fi
+
+# bc-central is EURO only
+[ "$__CURname" = "USD" ] && [ "$__XCHname" = "BCC" ] && { echo "no $__CURname for $__XCHname"; exit 1; }
+
+
+# .............................................
+# provided currency symbol (either EUR or USD)
+# .............................................
+
+
+if [ "$__CURname" = "EUR" ]; then { __CURsymbol="€ "; __altCURsymbol="$"; }
+elif [ "$__CURname" = "USD" ]; then { __CURsymbol="$"; __altCURsymbol="€ "; }
+else
+  echo "provide a currency symbol [USD|EUR]"
+  exit 1
+fi
+
+# ....................
+# Treshold is a number
+# ....................
+
+[ -z $__CURtreshold ] && { echo "provide a(n) $__CURname price treshold"; exit 1; }
+is_number $__CURtreshold || { echo "provided $__CURname price treshold ($__CURtreshold) is not a number"; exit 1; }
+
+
+# ..........
+# up or down
+# ..........
+
+if [ ! "$__updown" = "up" ] && [ ! "$__updown" = "down" ]
+then
+  echo "provide a direction [up|down]"
+  exit 1
+fi
+
+# ............
+# Alert Level
+# ............
+
+if [ ! "$__alertLevel" = "-2" ] && [ ! "$__alertLevel" = "-1" ] && [ ! "$__alertLevel" = "0" ] && [ ! "$__alertLevel" = "1" ] && [ ! "$__alertLevel" = "2" ]; then
+  echo "provide a prowl alert level [-2|-1|0|1|2]"
+  exit 1
+fi
+
+# .........
+# hasBanner
+# .........
+
+[ "$__hasBanner" = "banner" ] || [ "$__hasBanner" = "nobanner" ] || {
+  echo "hasBanner argument need be either 'banner' or 'nobanner'"
+  exit 1
+}
+
+# ............
+# Alt currency
+# ............
+
+if [ "$__toCUR" = "toEUR" ] && [ "$__CURname" = "EUR" ] ; then
+  echo "cannot convert EURO to EURO"
+  exit 1
+elif [ "$__toCUR" = "toUSD" ] && [ "$__CURname" = "USD" ] ; then
+  echo "cannot convert USD to USD"
+  exit 1
+elif [ ! "$__toCUR" = "toEUR" ] && [ ! "$__toCUR" = "toUSD" ] && [ -n "$__toCUR" ]; then
+  echo "unknown target currency $__toCUR : possible values are [toEUR|toUSD]"
+  exit 1
+fi
+
+
+# ----------------------------------------------------------------------
+#                 MAIN LOOP
+# ----------------------------------------------------------------------
+
+# store last price ticker
+__latest=0
+
+
+while true
+do
+  # get ticker -> last
+  last=$(eval "$__APIcmd 2>&1") # yeah, eval is evil
+                                # redir STDERR to STDOUT so as not to
+                                # pollute view when server errors
+
+  # check if answer is a number
+  if printf '%f' "$last" &>/dev/null
+  then
+
+    if [ "$( echo $last'=='$__latest | bc -l )" = "0" ]
+    then
+      __latest="$last"
+
+
+      printf "\n%s" "$__B_$__CURsymbol $__Y_$last"
+
+      # alert check
+      if [ "$__updown" = "up" ]
+      then
+        if [ $(echo $last'<'$__CURtreshold | bc -l) -eq 0 ]
+        then
+          printf "%s $__NN_" $__EMG_" > $__CURtreshold $__EMM_$__alertSymbol"
+          prowlpush "$__XCHname $__CURsymbol" "$__alertLevel" "last=$last"
+        else
+          printf "%s $__NN_" $__R_" < $__CURtreshold"
+        fi
+      else
+        if [ $(echo $last'>'$__CURtreshold | bc -l) -eq 0 ]
+        then
+          printf "%s $__NN_" $__EMG_" < $__CURtreshold $__EMM_$__alertSymbol"
+          prowlpush "$__XCHname $__CURsymbol" "$__alertLevel" "last=$last"
+        else
+          printf "%s $__NN_" $__R_" > $__CURtreshold"
+        fi
+      fi
+
+      # convert to alt currency if asked
+      [ -n "$__toCUR" ] && {
+        __rate=$( curl -s "http://rate-exchange.appspot.com/currency?from=USD&to=EUR" | json -a rate)
+        __conversion=
+        [ "$__CURname" = "EUR" ] && __conversion=$(printf  %0.5f $(echo "$last"/"$__rate" | bc -l )) # 5 decimals
+        [ "$__CURname" = "USD" ] && __conversion=$(printf  %0.5f $(echo "$last"*"$__rate" | bc -l )) # 5 decimals
+        printf "$__EMB_%s$__NN_" $__altCURsymbol" "
+        printf "$__B_%s$__NN_" $__conversion
+      }
+    else
+      printf "$__C_%s$__NN_" "."
+    fi
+  #BAD response from server
+  else
+      printf "$__EMR_%s$__NN_" "."
+  fi
+
+  [ "banner" = "$__hasBanner" ] && __banner
+  sleep $__looptick
+done
+
