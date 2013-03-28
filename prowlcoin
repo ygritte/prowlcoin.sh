@@ -238,7 +238,7 @@ define_colors_TPUT() {
 
 
 }
-__define_colors_TPUT
+define_colors_TPUT
 
 # ----------------------------------------------------------------------
 #            (dirty) COMMAND LINE ARGUMENTS parsing
