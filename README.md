@@ -1,4 +1,4 @@
-# Prowlcoin : prowl notifications for bitcoin exchanges in bash
+# Prowlcoin : prowl notifications for bitcoin exchanges in *pure* bash
 
 ## DESCRIPTION :
 
