@@ -121,8 +121,8 @@ __banner()
   }
 
   local __msg="(prowlcoin) $__XCHname $__CURsymbol"
-  local __msglength=$(echo $__msg | wc -c)
-  local __fillerlength=$((ncol - __msglength ))
+  local __msglength=$(printf "%s" "$__msg" | wc -c)
+  local __fillerlength=$((ncol - __msglength + 2))
   local __filler="$(head -c $__fillerlength < /dev/zero | tr '\0' ' ')"
   __msg="$__msg$__filler"
 
