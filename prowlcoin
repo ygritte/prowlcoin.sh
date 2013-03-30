@@ -414,7 +414,7 @@ do
 
       # convert to alt currency if asked
       [ -n "$__toCUR" ] && {
-        __rate=$( curl -s "http://rate-exchange.appspot.com/currency?from=USD&to=EUR" | $__scriptdir/JSON.sh/JSON.sh -b | grep rate | awk '{print $2}')
+        __rate=$( curl -s "http://rate-exchange.appspot.com/currency?from=USD&to=EUR"  2>&1 | $__scriptdir/JSON.sh/JSON.sh -b | grep rate | awk '{print $2}')
         __conversion=
         [ "$__CURname" = "EUR" ] && __conversion=$(printf  %0.5f $(echo "$last"/"$__rate" | bc -l )) # 5 decimals
         [ "$__CURname" = "USD" ] && __conversion=$(printf  %0.5f $(echo "$last"*"$__rate" | bc -l )) # 5 decimals
