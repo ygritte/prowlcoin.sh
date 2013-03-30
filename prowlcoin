@@ -59,6 +59,15 @@ __APIcmd=
 
 __supports8=false
 
+__thisdir="$(dirname $0)"
+__scriptdir="$__thisdir"
+# in case the script is called from symlink
+test -L $0 && {
+  __tmp="$(readlink $0)"
+  __scriptdir="$(dirname "$__tmp")"
+}
+
+
 # .......................
 # CHECK for UTF-8 support
 # .......................
@@ -72,8 +81,9 @@ locale >/dev/null 2>&1
 # LOAD PROWL API KEY
 # ..................
 
-[ -r .prowlapikey ] && __prowlAPIKEY="$(cat ./.prowlapikey)" || {
-    printf "\n%s\n\n" "Error : file not found .prowlapikey"
+
+[ -r $__scriptdir/.prowlapikey ] && __prowlAPIKEY="$(cat $__scriptdir/.prowlapikey)" || {
+    printf "\n%s\n\n" "Error : file not found $__scriptdir/.prowlapikey"
     exit 1
 }
 
@@ -82,10 +92,12 @@ locale >/dev/null 2>&1
 # UPDATE JSON.sh SUBMODULE
 # ........................
 
+cd "$__scriptdir"
 git submodule init >/dev/null 2>&1
 [ 0 -eq "$?" ] || { printf "\nCannot init 'JSON.sh' git submodule... exiting"; exit 1; }
 git submodule update >/dev/null 2>&1
 [ 0 -eq "$?" ] || { printf "\nCannot update 'JSON.sh' git submodule... exiting"; exit 1; }
+cd "$__thisdir"
 
 
 # ----------------------------------------------------------------------
@@ -275,11 +287,11 @@ fi
 
 if [ "$__XCHname" = "BCC" ]
 then
-  __APIcmd="curl -s https://bitcoin-central.net/api/v1/ticker | ./JSON.sh/JSON.sh -b | grep price | awk ""'""{print \$2}""'"
+  __APIcmd="curl -s https://bitcoin-central.net/api/v1/ticker | $__scriptdir/JSON.sh/JSON.sh -b | grep price | awk ""'""{print \$2}""'"
   #__APIcmd='curl -s https://bitcoin-central.net/api/v1/ticker | json -a price'
 elif [ "$__XCHname" = "GOX" ]
 then
-  __APIcmd="curl -s \"https://mtgox.com/api/1/BTC${__CURname}/ticker\" | ./JSON.sh/JSON.sh -b | grep return | grep \\\"last\\\" | grep \\\"value\\\" | awk '{print \$2}' | tr -d \\\""
+  __APIcmd="curl -s \"https://mtgox.com/api/1/BTC${__CURname}/ticker\" | $__scriptdir/JSON.sh/JSON.sh -b | grep return | grep \\\"last\\\" | grep \\\"value\\\" | awk '{print \$2}' | tr -d \\\""
   #__APIcmd='curl -s "https://mtgox.com/api/1/BTC${__CURname}/ticker" | json -a return | json -a last | json -a value'
 else
   echo "provide an exchange platform [BCC|GOX]"
