@@ -1,6 +1,6 @@
-# Prowlcoin : prowl notifications for bitcoin exchanges in *pure* bash
+# Prowl notifications for ฿itcoin exchanges in *pure* ฿ash
 
-## DESCRIPTION :
+## Description :
 
 
 Shell script to query bitcoin exchanges (mtgox, bc-central as of now)
@@ -24,7 +24,10 @@ Enter your Prowl API key in the `.prowlapikey` file
 
     $ echo ".....YOUR_PROWL_API_KEY....." > .prowlapikey
 
-## USAGE:
+>NB : you can symlink `prowlcoin` to anywhere in your `PATH`, it will
+>work ; but the API key has to be stored in the repository's main dir
+
+## Usage:
 
     ./prowlcoin tick exchange currency treshold direction alert_level has_banner [toCUR]
 
